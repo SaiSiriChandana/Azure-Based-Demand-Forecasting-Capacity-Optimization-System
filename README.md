@@ -9,7 +9,7 @@
 
 **A full-stack ML-powered system for predicting Azure cloud resource demand and optimizing capacity planning decisions**
 
-[Features](#-features) • [Architecture](#-architecture) • [Installation](#-installation) • [Usage](#-usage) • [API Documentation](#-api-documentation) • [Contributing](#-contributing)
+[Features](#-features) • [Architecture](#-architecture) • [Installation](#-installation) • [Usage](#-usage) 
 
 </div>
 
@@ -369,93 +369,5 @@ curl -X POST http://localhost:5000/api/capacity_planning \
 
 ---
 
-## 📊 Features by Page
 
-| Page | Backend Integration | Data Source |
-|------|-------------------|-------------|
-| **Dashboard** | ✅ Connected | Forecast API, Report API |
-| **Forecasts** | ✅ Fully Connected | Forecast, Capacity, Optimization APIs |
-| **Usage Trends** | ✅ Fully Connected | Forecast 7 & 30 APIs |
-| **Reports** | ✅ Connected | Report, Optimization APIs |
-| **Model Monitoring** | ✅ Connected | Monitoring, Forecast APIs |
-| **Multi-Region** | ✅ Fully Connected | Multi-Region API |
-| **Insights** | ⚠️ Partial | Mock data (can be enhanced) |
-
----
-
-## 🛠️ Development
-
-### Adding New Features
-
-1. **Backend:** Add new endpoint in `app.py`
-2. **Frontend:** Add API function in `services/api.js`
-3. **Frontend:** Create/update component in `pages/`
-
-### Code Style
-
-- **Python:** Follow PEP 8
-- **JavaScript:** ESLint configured
-- **React:** Functional components with hooks
-
----
-
-## 📚 Documentation
-
-- [Project Explanation](PROJECT_EXPLANATION.md) - Detailed project overview
-- [Backend Review Report](BACKEND_REVIEW_REPORT.md) - Backend code review
-- [Backend Fixes Applied](BACKEND_FIXES_APPLIED.md) - Fixes and improvements
-- [Frontend-Backend Connection Status](FRONTEND_BACKEND_CONNECTION_STATUS.md) - Integration status
-- [Multi-Region Integration](MULTI_REGION_INTEGRATION.md) - Multi-region feature docs
-- [GitHub Push Guide](GITHUB_PUSH_GUIDE.md) - How to push to GitHub
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-## 👥 Authors
-
-- **Your Name** - *Initial work*
-
----
-
-## 🙏 Acknowledgments
-
-- Azure Supply Chain team for requirements
-- scikit-learn community for ML tools
-- React and Flask communities for excellent frameworks
-
----
-
-## 📞 Support
-
-For issues, questions, or contributions:
-- Open an issue on GitHub
-- Check existing documentation
-- Review code comments
-
----
-
-<div align="center">
-
-**Built with ❤️ for Azure Capacity Planning**
-
-⭐ Star this repo if you find it helpful!
-
-</div>
 
