@@ -46,7 +46,7 @@ export function showHighRiskAlert({ resource, usage, threshold }) {
 
 /* ---------------- CHAT ASSISTANT COMPONENT ---------------- */
 
-function ChatAssistant({ isOpen, onClose }) {
+function ChatAssistant({ isOpen, onClose, currentContext }) {
   const [messages, setMessages] = useState([
     {
       from: "bot",
@@ -55,18 +55,31 @@ function ChatAssistant({ isOpen, onClose }) {
   ]);
   const [input, setInput] = useState("");
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
     const userMsg = { from: "user", text: input };
-    const botMsg = {
-      from: "bot",
-      text:
-        "This is a placeholder reply. Later I can explain your charts and forecasts in simple words based on real data.",
-    };
-
-    setMessages((prev) => [...prev, userMsg, botMsg]);
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
+
+    try {
+      const contextString = currentContext ? JSON.stringify(currentContext) : "{}";
+      const response = await fetch("http://localhost:5000/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: input,
+          system_instruction: `Current page context: ${contextString}. Use this context to answer specific questions about the data on screen.`
+        }),
+      });
+      const data = await response.json();
+      const botMsg = { from: "bot", text: data.reply };
+      setMessages((prev) => [...prev, botMsg]);
+    } catch (err) {
+      console.error("Chat error:", err);
+      const errorMsg = { from: "bot", text: "Sorry, I couldn't reach the server." };
+      setMessages((prev) => [...prev, errorMsg]);
+    }
   };
 
   if (!isOpen) return null;
@@ -370,6 +383,7 @@ function TrendLineChart({ data }) {
   );
 }
 
+
 /* ---------------- DASHBOARD LAYOUT (USED AT "/") ---------------- */
 
 function DashboardLayout() {
@@ -382,6 +396,12 @@ function DashboardLayout() {
   const [storageChartData, setStorageChartData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [chatContext, setChatContext] = useState(null);
+
+  // Clear context when changing pages
+  useEffect(() => {
+    setChatContext(null);
+  }, [selectedPage]);
 
   // Fetch dashboard data from backend
   useEffect(() => {
@@ -559,98 +579,56 @@ function DashboardLayout() {
       case "Usage Trends":
         return <UsageTrends />;
       case "Forecasts":
-        return <Forecasts />;
+        return <Forecasts onContextUpdate={setChatContext} />;
       case "Reports":
-        return <Reports />;
+        return <Reports onContextUpdate={setChatContext} />;
       case "Insights":
         return <Insights />;
       case "Model Dashboard":
         return <ModelMonitoring />;
       case "Multi-Region":
         return <MultiRegionDashboard />;
-      case "Models":
-        return <div className="text-white">Models page placeholder</div>;
       default:
         return (
-          <>
-            <IntroPage onForecastSubmit={handleForecastFormSubmit} />
-            {isLoading ? (
-              <div className="text-center py-12">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#b7d2f7] dark:border-orange-400"></div>
-                <p className="mt-4 text-[#557399] dark:text-orange-200">Loading dashboard data...</p>
-              </div>
-            ) : (
-              <>
-                <div className="bg-[#f7f7f5] dark:bg-gradient-to-br dark:from-fuchsia-600 dark:to-orange-400 border border-[#b7d2f7] dark:border-none rounded-xl shadow mb-8 px-5 py-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {kpiData.map(({ title, value, delta, subtitle }, idx) => (
-                      <KPICard
-                        key={idx}
-                        title={title}
-                        value={value}
-                        delta={delta}
-                        subtitle={subtitle}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                  <div className="bg-[#f7f7f5] dark:bg-gradient-to-br dark:from-fuchsia-600 dark:to-orange-400 border border-[#b7d2f7] dark:border-none rounded-xl shadow px-6 py-6">
-                    <BarComparisonChart data={barChartData} />
-                  </div>
-                  <div className="bg-[#f7f7f5] dark:bg-gradient-to-br dark:from-fuchsia-600 dark:to-orange-400 border border-[#b7d2f7] dark:border-none rounded-xl shadow px-6 py-6">
-                    <TrafficPieChart data={pieChartData} />
-                  </div>
-                  <div className="bg-[#f7f7f5] dark:bg-gradient-to-br dark:from-fuchsia-600 dark:to-orange-400 border border-[#b7d2f7] dark:border-none rounded-xl shadow px-6 py-6">
-                    <TrendLineChart data={lineChartData} />
-                  </div>
-                  <div className="bg-[#f7f7f5] dark:bg-gradient-to-br dark:from-fuchsia-600 dark:to-orange-400 border border-[#b7d2f7] dark:border-none rounded-xl shadow px-6 py-6">
-                    <SystemUsageTable forecastData={lineChartData.map(d => d.value)} />
-                  </div>
-                </div>
-              </>
-            )}
-          </>
+          <div className="flex justify-center items-center h-64 text-gray-500">
+            Page under construction
+          </div>
         );
     }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#fffff0] dark:bg-gray-900 transition-all duration-500">
-      <Header />
-      <div className="flex flex-1">
-        <Sidebar onSelect={setSelectedPage} />
-        <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+    <div className="flex h-screen bg-[#eef3f8] dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      <Sidebar activePage={selectedPage} onSelect={setSelectedPage} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header
+          selectedPage={selectedPage}
+          isChatOpen={isChatOpen}
+          setIsChatOpen={setIsChatOpen}
+        />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
           {renderContent()}
         </main>
       </div>
-
-      {/* Floating assistant button */}
-      <button
-        onClick={() => setIsChatOpen(true)}
-        className="fixed bottom-4 right-4 rounded-full bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-fuchsia-600 dark:to-orange-400 text-white p-3 shadow-xl flex items-center gap-2"
-      >
-        <span className="text-sm font-semibold">Ask Assistant</span>
-      </button>
-
-      {/* Chat assistant panel */}
-      <ChatAssistant isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-
-      {/* Global toast container for alerts */}
-      <ToastContainer position="top-right" autoClose={5000} />
+      <ChatAssistant
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        currentContext={chatContext}
+      />
     </div>
   );
 }
 
-/* ---------------- LOGIN PAGE (USED AT "/login") ---------------- */
+/* ---------------- LOGIN PAGE (USED AT "/LOGIN") ---------------- */
 
 function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-700 dark:from-gray-900 dark:to-gray-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-gray-900 dark:to-gray-800 p-4">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 md:p-12 max-w-md w-full mx-auto"
+        initial={{ opacity: 0, y: -50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white dark:bg-gray-700 p-8 rounded-2xl shadow-2xl w-full max-w-md"
       >
         <div className="text-center mb-8">
           <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-fuchsia-400 dark:to-orange-400 bg-clip-text text-transparent mb-2">

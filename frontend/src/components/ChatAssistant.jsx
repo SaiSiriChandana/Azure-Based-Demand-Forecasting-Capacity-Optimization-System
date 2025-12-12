@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-function ChatAssistant({ isOpen, onClose }) {
+function ChatAssistant({ isOpen, onClose, currentContext }) {
   const [messages, setMessages] = useState([
     {
       from: "bot",
@@ -19,12 +19,18 @@ function ChatAssistant({ isOpen, onClose }) {
     setLoading(true);
 
     try {
+      // Construct context string if available
+      let contextStr = "";
+      if (currentContext) {
+        contextStr = `\n\nCURRENT PAGE CONTEXT:\n${JSON.stringify(currentContext, null, 2)}`;
+      }
+
       // Build history in OpenAI-style format
       const apiMessages = [
         {
           role: "system",
           content:
-            "You are a helpful Azure demand forecasting assistant. Explain charts, KPIs, and trends in simple language.",
+            "You are a helpful Azure demand forecasting assistant. Explain charts, KPIs, and trends in simple language." + contextStr,
         },
         ...messages.map((m) => ({
           role: m.from === "user" ? "user" : "assistant",
@@ -82,11 +88,10 @@ function ChatAssistant({ isOpen, onClose }) {
         {messages.map((m, idx) => (
           <div
             key={idx}
-            className={`max-w-[85%] px-3 py-2 rounded-xl ${
-              m.from === "user"
+            className={`max-w-[85%] px-3 py-2 rounded-xl ${m.from === "user"
                 ? "ml-auto bg-blue-600 text-white"
                 : "mr-auto bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100"
-            }`}
+              }`}
           >
             {m.text}
           </div>

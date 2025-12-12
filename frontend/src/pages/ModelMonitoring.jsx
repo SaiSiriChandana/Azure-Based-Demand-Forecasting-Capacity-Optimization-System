@@ -29,7 +29,7 @@ export default function ModelMonitoring() {
       setError(null);
       try {
         // Fetch monitoring stats
-        const monitoringResponse = await fetchMonitoring(8.5);
+        const monitoringResponse = await fetchMonitoring();
         setMonitoringData(monitoringResponse);
 
         // Fetch forecast to calculate accuracy trends
@@ -121,156 +121,156 @@ export default function ModelMonitoring() {
       ) : (
         <>
 
-      {/* top: accuracy trend + health card */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        {/* accuracy line chart */}
-        <div className="xl:col-span-2 bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            Model accuracy trend
-          </h3>
-          <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
-            Weekly forecast accuracy based on backtested actuals.
-          </p>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={accuracyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="week" stroke="#6b7280" />
-                <YAxis domain={[50, 100]} stroke="#6b7280" />
-                <ReTooltip />
-                <ReLegend />
-                <Line
-                  type="monotone"
-                  dataKey="accuracy"
-                  stroke="#22c55e"
-                  strokeWidth={3}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+          {/* top: accuracy trend + health card */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+            {/* accuracy line chart */}
+            <div className="xl:col-span-2 bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                Model accuracy trend
+              </h3>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
+                Weekly forecast accuracy based on backtested actuals.
+              </p>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={accuracyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="week" stroke="#6b7280" />
+                    <YAxis domain={[50, 100]} stroke="#6b7280" />
+                    <ReTooltip />
+                    <ReLegend />
+                    <Line
+                      type="monotone"
+                      dataKey="accuracy"
+                      stroke="#22c55e"
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
-        {/* traffic light health + retrain date */}
-        <div className="space-y-4">
-          <div className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              Forecast health
-            </h3>
-            <div className="flex items-center gap-3 mb-2">
-              <span
-                className={`inline-flex w-4 h-4 rounded-full ${healthColor} shadow-sm`}
-              />
-              <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  {health}
-                </p>
+            {/* traffic light health + retrain date */}
+            <div className="space-y-4">
+              <div className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                  Forecast health
+                </h3>
+                <div className="flex items-center gap-3 mb-2">
+                  <span
+                    className={`inline-flex w-4 h-4 rounded-full ${healthColor} shadow-sm`}
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      {health}
+                    </p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Latest accuracy: {latestAccuracy}%
+                    </p>
+                  </div>
+                </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Latest accuracy: {latestAccuracy}%
+                  {healthText}
+                </p>
+
+                <div className="mt-4 border-t border-gray-200 dark:border-gray-800 pt-3 space-y-1 text-[11px]">
+                  <p className="flex items-center gap-2">
+                    <span className="inline-flex w-3 h-3 rounded-full bg-emerald-500" />
+                    <span>Stable → Accuracy &gt; 85%</span>
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="inline-flex w-3 h-3 rounded-full bg-yellow-400" />
+                    <span>Caution → Accuracy 70–85%</span>
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="inline-flex w-3 h-3 rounded-full bg-red-500" />
+                    <span>Retrain Needed → Accuracy &lt; 70%</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                  Last retrain
+                </h3>
+                <p className="text-sm text-gray-800 dark:text-gray-200">
+                  {lastRetrainDate}
+                </p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                  Triggered by drift in West Europe Storage MAPE.
                 </p>
               </div>
             </div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              {healthText}
-            </p>
+          </div>
 
-            <div className="mt-4 border-t border-gray-200 dark:border-gray-800 pt-3 space-y-1 text-[11px]">
-              <p className="flex items-center gap-2">
-                <span className="inline-flex w-3 h-3 rounded-full bg-emerald-500" />
-                <span>Stable → Accuracy &gt; 85%</span>
+          {/* bottom: error drift alerts + bar chart */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            {/* error drift alerts */}
+            <div className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm xl:col-span-1">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                Error drift alerts
+              </h3>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
+                Recent deviations between forecast and actuals.
               </p>
-              <p className="flex items-center gap-2">
-                <span className="inline-flex w-3 h-3 rounded-full bg-yellow-400" />
-                <span>Caution → Accuracy 70–85%</span>
-              </p>
-              <p className="flex items-center gap-2">
-                <span className="inline-flex w-3 h-3 rounded-full bg-red-500" />
-                <span>Retrain Needed → Accuracy &lt; 70%</span>
-              </p>
+              <ul className="space-y-3 text-xs">
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex w-2 h-2 rounded-full bg-red-500" />
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">
+                      High drift in East US Compute
+                    </p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Week 7 MAPE exceeded 22% vs 10% baseline.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex w-2 h-2 rounded-full bg-yellow-400" />
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">
+                      Gradual drift in West Europe Storage
+                    </p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Error increasing 3 weeks in a row; monitor closely.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex w-2 h-2 rounded-full bg-emerald-500" />
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">
+                      Network bandwidth forecasts stable
+                    </p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Errors remain within ±5% tolerance.
+                    </p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            {/* error bar chart */}
+            <div className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm xl:col-span-2">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                Error drift (MAPE by week)
+              </h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={errorData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="week" stroke="#6b7280" />
+                    <YAxis stroke="#6b7280" />
+                    <ReTooltip />
+                    <ReLegend />
+                    <Bar dataKey="mape" fill="#f97316" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
-
-          <div className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
-              Last retrain
-            </h3>
-            <p className="text-sm text-gray-800 dark:text-gray-200">
-              {lastRetrainDate}
-            </p>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-              Triggered by drift in West Europe Storage MAPE.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* bottom: error drift alerts + bar chart */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* error drift alerts */}
-        <div className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm xl:col-span-1">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            Error drift alerts
-          </h3>
-          <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
-            Recent deviations between forecast and actuals.
-          </p>
-          <ul className="space-y-3 text-xs">
-            <li className="flex items-start gap-2">
-              <span className="mt-0.5 inline-flex w-2 h-2 rounded-full bg-red-500" />
-              <div>
-                <p className="font-semibold text-gray-900 dark:text-gray-100">
-                  High drift in East US Compute
-                </p>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Week 7 MAPE exceeded 22% vs 10% baseline.
-                </p>
-              </div>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-0.5 inline-flex w-2 h-2 rounded-full bg-yellow-400" />
-              <div>
-                <p className="font-semibold text-gray-900 dark:text-gray-100">
-                  Gradual drift in West Europe Storage
-                </p>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Error increasing 3 weeks in a row; monitor closely.
-                </p>
-              </div>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-0.5 inline-flex w-2 h-2 rounded-full bg-emerald-500" />
-              <div>
-                <p className="font-semibold text-gray-900 dark:text-gray-100">
-                  Network bandwidth forecasts stable
-                </p>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Errors remain within ±5% tolerance.
-                </p>
-              </div>
-            </li>
-          </ul>
-        </div>
-
-        {/* error bar chart */}
-        <div className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm xl:col-span-2">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            Error drift (MAPE by week)
-          </h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={errorData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="week" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
-                <ReTooltip />
-                <ReLegend />
-                <Bar dataKey="mape" fill="#f97316" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
         </>
       )}
     </div>

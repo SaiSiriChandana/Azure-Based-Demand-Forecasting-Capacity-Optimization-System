@@ -90,7 +90,7 @@ const generateCapacityData = () => {
   ];
 };
 
-export default function Forecasts() {
+export default function Forecasts({ onContextUpdate }) {
   const [filters, setFilters] = useState({
     region: "",
     service: "",
@@ -104,6 +104,7 @@ export default function Forecasts() {
   const [trafficDelta, setTrafficDelta] = useState(0);   // -50 to +50
 
   const [forecastData, setForecastData] = useState(null);
+  const [storageData, setStorageData] = useState(null);
   const [capacityData, setCapacityData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -114,27 +115,67 @@ export default function Forecasts() {
       setIsLoading(true);
       setError(null);
       try {
-        // Fetch 7-day forecast
-        const forecastResponse = await fetchForecast7();
-        const predictions = forecastResponse.predictions || [];
-        
-        setForecastData(predictions);
+        const selectedRegion = filters.region || "East US";
+        const horizon = filters.timeHorizon || "7 Days";
+        let forecastResponse;
 
-        // Fetch capacity planning data
-        const capacityResponse = await fetchCapacityPlanning(10000, 7);
+        // Determine which API to call based on time horizon
+        if (horizon === "30 Days") {
+          const { fetchForecast30 } = await import("../services/api");
+          forecastResponse = await fetchForecast30(selectedRegion);
+        } else {
+          // Default to 7 days
+          forecastResponse = await fetchForecast7(selectedRegion);
+        }
+
+        // Support both old and new backend response structures
+        const cpuPreds = forecastResponse.predictions_cpu || forecastResponse.predictions || [];
+        const storagePreds = forecastResponse.predictions_storage || [];
+
+        setForecastData(cpuPreds);
+        setStorageData(storagePreds);
+
+        // Fetch capacity planning data (matches forecast horizon)
+        const days = horizon === "30 Days" ? 30 : 7;
+        const capacityResponse = await fetchCapacityPlanning(10000, days);
         setCapacityData(capacityResponse);
       } catch (err) {
         console.error("Error loading forecast data:", err);
         setError(err.message);
-        // Set fallback data
-        setForecastData(Array(7).fill(0));
+        // Set fallback data based on horizon
+        const days = filters.timeHorizon === "30 Days" ? 30 : 7;
+        setForecastData(Array(days).fill(0));
+        setStorageData(Array(days).fill(0));
       } finally {
         setIsLoading(false);
       }
     };
 
     loadForecastData();
-  }, []);
+  }, [filters]);
+
+  // Send context to chat assistant whenever data updates
+  useEffect(() => {
+    if (onContextUpdate && forecastData && forecastData.length > 0) {
+      const contextData = {
+        page: "Forecasts",
+        cpuForecast: forecastData,
+        storageForecast: storageData || [],
+        capacityPlanning: capacityData,
+        filters: filters,
+        summary: {
+          totalDays: forecastData.length,
+          avgCPU: (forecastData.reduce((sum, v) => sum + v, 0) / forecastData.length).toFixed(1),
+          maxCPU: Math.max(...forecastData).toFixed(1),
+          minCPU: Math.min(...forecastData).toFixed(1),
+          avgStorage: storageData && storageData.length > 0
+            ? (storageData.reduce((sum, v) => sum + v, 0) / storageData.length).toFixed(2)
+            : 0
+        }
+      };
+      onContextUpdate(contextData);
+    }
+  }, [forecastData, storageData, capacityData, filters, onContextUpdate]);
 
   const metrics = useMemo(() => {
     if (!forecastData || forecastData.length === 0) {
@@ -171,16 +212,22 @@ export default function Forecasts() {
     }
 
     // Use real forecast data
-    const cpuForecast = forecastData.slice(0, 7).map(v => Math.round(v));
+    const dataLength = forecastData.length;
+    const cpuForecast = forecastData.map(v => Math.round(v));
     const cpuCurrent = cpuForecast[0] || 0;
 
-    // Storage estimated as 85% of CPU, converted to TB
-    const storageCurrent = Number((cpuCurrent * 0.01 * 2.5).toFixed(2));
-    const storageForecast = cpuForecast.map(cpu => 
-      Number((cpu * 0.01 * 2.5).toFixed(2))
-    );
+    // Use REAL Storage forecast if available, else fallback
+    let storageForecast;
+    if (storageData && storageData.length > 0) {
+      // Ensure we match the length of CPU forecast (7 or 30 days)
+      storageForecast = storageData.slice(0, dataLength).map(v => Number(v.toFixed(2)));
+    } else {
+      // Fallback derivation if missing
+      storageForecast = cpuForecast.map(cpu => Number((cpu * 0.01 * 2.5).toFixed(2)));
+    }
+    const storageCurrent = storageForecast[0] || 0;
 
-    // Network estimated from CPU (scaled)
+    // Network estimated from CPU (scaled) - still simulated/derived as we lack a network model
     const netCurrent = Math.round(cpuCurrent * 10);
     const netForecast = cpuForecast.map(cpu => Math.round(cpu * 10));
 
@@ -234,7 +281,7 @@ export default function Forecasts() {
         })(),
       },
     ];
-  }, [forecastData]);
+  }, [forecastData, storageData]);
 
   useEffect(() => {
     setCurrentSlide(0);
@@ -246,8 +293,8 @@ export default function Forecasts() {
       filters.service === "Compute"
         ? m.id === "cpu"
         : filters.service === "Storage"
-        ? m.id === "storage"
-        : m.id
+          ? m.id === "storage"
+          : m.id
     );
   }, [metrics, filters.service]);
 
@@ -264,35 +311,65 @@ export default function Forecasts() {
   const prevSlide = () =>
     setCurrentSlide((p) => (p - 1 + filteredMetrics.length) % filteredMetrics.length);
 
-  const optimizations = [
-    {
-      id: "opt-cpu",
-      title: "Auto-scale CPU",
-      description:
-        "Enable auto-scaling for east-region CPU clusters during predicted peak weeks. Configure conservative cooldown and step scaling policies.",
-      impact: "High",
-      metric: "cpu",
-      date: "2025-11-01",
-    },
-    {
-      id: "opt-storage",
-      title: "Storage Rightsizing",
-      description:
-        "Reclaim unused storage, identify cold data and migrate to cheaper tiers (Archive/Blob Cool). Run lifecycle policies weekly.",
-      impact: "Medium",
-      metric: "storage",
-      date: "2025-10-18",
-    },
-    {
-      id: "opt-network",
+  // Dynamic Optimizations based on REAL forecast data
+  const optimizations = useMemo(() => {
+    if (!forecastData || forecastData.length === 0) return [];
+
+    const dynamicOpts = [];
+    const today = new Date();
+
+    // Check CPU Logic
+    const maxCpu = Math.max(...forecastData);
+    if (maxCpu > 85) {
+      dynamicOpts.push({
+        id: "opt-cpu-scale",
+        title: "Auto-scale CPU",
+        description: `Predicted CPU load hits ${Math.round(maxCpu)}% this week. Enable auto-scaling policies to handle peak demand.`,
+        impact: "High",
+        metric: "cpu",
+        date: new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // +2 days
+      });
+    }
+
+    // Check Storage Logic
+    // If storage is growing fast or static high
+    if (storageData) {
+      const start = storageData[0];
+      const end = storageData[storageData.length - 1];
+      if (end > start * 1.1) {
+        dynamicOpts.push({
+          id: "opt-storage-growth",
+          title: "Storage Expansion",
+          description: "Storage usage is trending upwards rapidly. Provision additional block storage volumes.",
+          impact: "Medium",
+          metric: "storage",
+          date: new Date(today.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        });
+      } else {
+        dynamicOpts.push({
+          id: "opt-storage-rightsizing",
+          title: "Storage Rightsizing",
+          description: "Storage usage is stable. Run lifecycle policies to move cold data to Archive tier.",
+          impact: "Low",
+          metric: "storage",
+          date: new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        });
+      }
+    }
+
+    // Add a Network item for completeness (Simulated based on CPU)
+    dynamicOpts.push({
+      id: "opt-network-qos",
       title: "Network QoS Tuning",
-      description:
-        "Adjust QoS rules to prioritize critical traffic, apply burst controls on non-critical flows and reduce latency spikes.",
+      description: "Adjust QoS rules to prioritize critical traffic during forecasted active hours.",
       impact: "Low",
       metric: "network",
-      date: "2025-10-10",
-    },
-  ];
+      date: new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    });
+
+    return dynamicOpts;
+  }, [forecastData, storageData]);
+
 
   const COLORS = ["#99bde7", "#ebedf0"];
   const makeLineData = (forecast) =>
@@ -350,10 +427,11 @@ export default function Forecasts() {
     const weeks = ["Week 1", "Week 2", "Week 3", "Week 4"];
     const capacity = capacityData.capacity || 10000;
     const avgForecast = capacityData.avg_forecast || 0;
-    
+
     return weeks.map((week, idx) => {
       const forecast = forecastData[idx] || avgForecast;
-      const weekCapacity = capacity + (idx * 100); // Simulate capacity changes
+      // REAL LOGIC: Compare against FIXED capacity, no fake fluctuations
+      const weekCapacity = capacity;
       return {
         date: week,
         forecast: Math.round(forecast),
@@ -374,7 +452,7 @@ export default function Forecasts() {
   useEffect(() => {
     const loadOptimization = async () => {
       if (!forecastData || forecastData.length === 0) return;
-      
+
       try {
         const avgForecast = forecastData.reduce((a, b) => a + b, 0) / forecastData.length;
         const capacity = Math.round(avgForecast * 100); // Estimate capacity from forecast
@@ -444,6 +522,26 @@ export default function Forecasts() {
     return { baseCpu, baseStorage, simulatedCpu, simulatedStorage };
   }, [metrics, workloadDelta, trafficDelta]);
   // --------------------------------------------------
+
+  // Update chat assistant context
+  useEffect(() => {
+    if (onContextUpdate) {
+      onContextUpdate({
+        page: "Forecasts",
+        filters,
+        data: {
+          forecast: forecastData,
+          storage: storageData,
+          metrics: metrics,
+          capacity: capacityRows,
+          optimizations: optimizations,
+          recommendations: recommendations,
+          whatIf: whatIfResults
+        }
+      });
+    }
+  }, [onContextUpdate, filters, forecastData, storageData, metrics, capacityRows, optimizations, recommendations, whatIfResults]);
+
 
   // --------- PREDICTION ALERT (toast) -------------
   useEffect(() => {
@@ -576,18 +674,16 @@ export default function Forecasts() {
                     className="relative"
                   >
                     <div
-                      className={`absolute -left-4 top-1 w-3 h-3 rounded-full border-2 ${
-                        active
-                          ? "bg-[#b7d2f7] border-[#afd8fa]"
-                          : "bg-white dark:bg-[#dbeafe] border-[#b7d2f7] dark:border-fuchsia-600"
-                      }`}
+                      className={`absolute -left-4 top-1 w-3 h-3 rounded-full border-2 ${active
+                        ? "bg-[#b7d2f7] border-[#afd8fa]"
+                        : "bg-white dark:bg-[#dbeafe] border-[#b7d2f7] dark:border-fuchsia-600"
+                        }`}
                     />
                     <div
-                      className={`pl-6 py-4 pr-4 rounded-xl shadow-sm transition-all cursor-pointer ${
-                        active
-                          ? "bg-white dark:bg-orange-900 ring-1 ring-[#b7d2f7]/50"
-                          : "bg-[#f7f7f5]/80 dark:bg-fuchsia-900/60"
-                      }`}
+                      className={`pl-6 py-4 pr-4 rounded-xl shadow-sm transition-all cursor-pointer ${active
+                        ? "bg-white dark:bg-orange-900 ring-1 ring-[#b7d2f7]/50"
+                        : "bg-[#f7f7f5]/80 dark:bg-fuchsia-900/60"
+                        }`}
                       onClick={() =>
                         setActiveOpt(expanded ? null : opt.id)
                       }
@@ -603,13 +699,12 @@ export default function Forecasts() {
                         </div>
                         <div className="text-right">
                           <span
-                            className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                              opt.impact === "High"
-                                ? "bg-blue-100 text-blue-700 dark:bg-red-900/30 dark:text-red-300"
-                                : opt.impact === "Medium"
+                            className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${opt.impact === "High"
+                              ? "bg-blue-100 text-blue-700 dark:bg-red-900/30 dark:text-red-300"
+                              : opt.impact === "Medium"
                                 ? "bg-slate-100 text-slate-900 dark:bg-yellow-900/30 dark:text-yellow-400"
                                 : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                            }`}
+                              }`}
                           >
                             {opt.impact}
                           </span>
@@ -902,8 +997,8 @@ export default function Forecasts() {
                           (r.status === "Sufficient"
                             ? "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
                             : r.status === "Shortage"
-                            ? "bg-red-500/10 text-red-700 dark:bg-red-500/15 dark:text-red-300"
-                            : "bg-yellow-500/10 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-300")
+                              ? "bg-red-500/10 text-red-700 dark:bg-red-500/15 dark:text-red-300"
+                              : "bg-yellow-500/10 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-300")
                         }
                       >
                         {r.status}

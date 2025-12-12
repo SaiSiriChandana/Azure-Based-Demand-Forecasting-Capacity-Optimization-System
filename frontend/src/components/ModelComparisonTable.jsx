@@ -30,12 +30,12 @@ export default function ModelComparisonTable({ models }) {
       <table className="w-full border-collapse">
         <thead>
           <tr className="bg-gray-100 dark:bg-gray-700 text-left">
-            <SortableTH label="Model Name" onSort={() => handleSort("name")} />
+            <SortableTH label="Model" onSort={() => handleSort("name")} />
             <SortableTH label="MAE" onSort={() => handleSort("mae")} />
             <SortableTH label="RMSE" onSort={() => handleSort("rmse")} />
-            <SortableTH label="MAPE" onSort={() => handleSort("mape")} />
-            <SortableTH label="Training Time" onSort={() => handleSort("trainingTime")} />
-            <SortableTH label="Inference Speed" onSort={() => handleSort("inferenceSpeed")} />
+            <SortableTH label="R²" onSort={() => handleSort("r2")} />
+            <SortableTH label="MAPE (%)" onSort={() => handleSort("mape")} />
+            <th className="p-3 border text-gray-800 dark:text-gray-200 select-none">Performance</th>
           </tr>
         </thead>
 
@@ -43,20 +43,22 @@ export default function ModelComparisonTable({ models }) {
           {sortedModels.map((model, idx) => (
             <tr
               key={idx}
-              className={`transition cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-700 ${
-                bestModel.name === model.name
+              className={`transition cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-700 ${model.name === "Random Forest"
                   ? "bg-green-100 dark:bg-green-900 font-semibold"
                   : "bg-white dark:bg-gray-900"
-              }`}
-              onClick={() => alert(`Selected model: ${model.name}`)}
+                }`}
             >
-              <td className="p-3 border text-gray-800 dark:text-gray-200">{model.name}</td>
+              <td className="p-3 border text-gray-800 dark:text-gray-200 font-medium">{model.name}</td>
               <td className="p-3 border text-gray-800 dark:text-gray-200">{model.mae}</td>
               <td className="p-3 border text-gray-800 dark:text-gray-200">{model.rmse}</td>
-              <td className="p-3 border text-gray-800 dark:text-gray-200">{model.mape}%</td>
-              <td className="p-3 border text-gray-800 dark:text-gray-200">{model.trainingTime}</td>
-              <td className="p-3 border text-gray-800 dark:text-gray-200">{model.inferenceSpeed}</td>
-              
+              <td className="p-3 border text-gray-800 dark:text-gray-200">{model.r2 || "—"}</td>
+              <td className="p-3 border text-gray-800 dark:text-gray-200">{model.mape}</td>
+              <td className="p-3 border text-gray-800 dark:text-gray-200">
+                {model.performance === "BEST" && <span className="text-yellow-500 font-bold">⭐ BEST</span>}
+                {model.performance === "Excellent" && <span className="text-yellow-500 font-bold">⭐ Excellent</span>}
+                {model.performance === "Poor" && <span className="text-red-500 font-bold">❌ Poor</span>}
+                {model.performance === "Very Poor" && <span className="text-red-500 font-bold">❌ Very Poor</span>}
+              </td>
             </tr>
           ))}
         </tbody>

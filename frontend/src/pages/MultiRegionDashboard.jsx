@@ -31,10 +31,10 @@ export default function MultiRegionDashboard() {
         const response = await fetchMultiRegion();
         const regionsData = response.regions || [];
         setAllRegions(regionsData);
-        
+
         // Set default selected regions if available
         if (regionsData.length > 0 && selectedRegions.length === 0) {
-          setSelectedRegions(regionsData.slice(0, 2).map(r => r.name));
+          setSelectedRegions(regionsData.slice(0, 4).map(r => r.name));
         }
       } catch (err) {
         console.error("Error loading multi-region data:", err);
@@ -98,99 +98,99 @@ export default function MultiRegionDashboard() {
         </div>
       ) : (
         <>
-      {/* Region selector */}
-      <div className="mb-6 flex flex-wrap gap-3 text-xs">
-        {allRegions.map((r) => (
-          <label
-            key={r.name}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[#b7d2f7] dark:border-gray-700 bg-white dark:bg-gray-900 cursor-pointer"
-          >
-            <input
-              type="checkbox"
-              className="accent-[#2563eb]"
-              checked={selectedRegions.includes(r.name)}
-              onChange={() => handleToggleRegion(r.name)}
-            />
-            <span className="font-medium text-[#1f2933] dark:text-gray-100">
-              {r.name}
-            </span>
-          </label>
-        ))}
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
-        {/* CPU & Storage */}
-        <div className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            CPU & Storage by region
-          </h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={capacityChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="region" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="cpu" name="CPU (%)" fill="#60a5fa" />
-                <Bar dataKey="storage" name="Storage (TB)" fill="#f97316" />
-              </BarChart>
-            </ResponsiveContainer>
+          {/* Region selector */}
+          <div className="mb-6 flex flex-wrap gap-3 text-xs">
+            {allRegions.map((r) => (
+              <label
+                key={r.name}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[#b7d2f7] dark:border-gray-700 bg-white dark:bg-gray-900 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  className="accent-[#2563eb]"
+                  checked={selectedRegions.includes(r.name)}
+                  onChange={() => handleToggleRegion(r.name)}
+                />
+                <span className="font-medium text-[#1f2933] dark:text-gray-100">
+                  {r.name}
+                </span>
+              </label>
+            ))}
           </div>
-        </div>
 
-        {/* Forecast comparison */}
-        <div className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            Forecast demand (relative units)
-          </h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={forecastChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="step" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
-                <Tooltip />
-                <Legend />
-                {visibleRegions.map((r, idx) => (
-                  <Line
-                    key={r.name}
-                    type="monotone"
-                    dataKey={r.name}
-                    stroke={["#3b82f6", "#22c55e", "#f97316"][idx % 3]}
-                    strokeWidth={3}
-                    dot={{ r: 3 }}
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
+          {/* Charts */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+            {/* CPU & Storage */}
+            <div className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                CPU & Storage by region
+              </h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={capacityChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="region" stroke="#6b7280" />
+                    <YAxis stroke="#6b7280" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="cpu" name="CPU (%)" fill="#60a5fa" />
+                    <Bar dataKey="storage" name="Storage (TB)" fill="#f97316" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
-      {/* Peak hours + recommendations */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {visibleRegions.map((r) => (
-          <div
-            key={r.name}
-            className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm text-xs"
-          >
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
-              {r.name}
-            </p>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-              Peak hours: {r.peakHours.join(", ")}
-            </p>
-            <p className="text-[11px] font-medium text-[#1f2933] dark:text-gray-100">
-              Recommendation:
-            </p>
-            <p className="text-[11px] text-gray-600 dark:text-gray-300">
-              {r.recommendation}
-            </p>
+            {/* Forecast comparison */}
+            <div className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                Forecast demand (relative units)
+              </h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={forecastChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="step" stroke="#6b7280" />
+                    <YAxis stroke="#6b7280" />
+                    <Tooltip />
+                    <Legend />
+                    {visibleRegions.map((r, idx) => (
+                      <Line
+                        key={r.name}
+                        type="monotone"
+                        dataKey={r.name}
+                        stroke={["#3b82f6", "#22c55e", "#f97316"][idx % 3]}
+                        strokeWidth={3}
+                        dot={{ r: 3 }}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
+
+          {/* Peak hours + recommendations */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {visibleRegions.map((r) => (
+              <div
+                key={r.name}
+                className="bg-white dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm text-xs"
+              >
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                  {r.name}
+                </p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+                  Peak hours: {r.peakHours.join(", ")}
+                </p>
+                <p className="text-[11px] font-medium text-[#1f2933] dark:text-gray-100">
+                  Recommendation:
+                </p>
+                <p className="text-[11px] text-gray-600 dark:text-gray-300">
+                  {r.recommendation}
+                </p>
+              </div>
+            ))}
+          </div>
         </>
       )}
     </div>

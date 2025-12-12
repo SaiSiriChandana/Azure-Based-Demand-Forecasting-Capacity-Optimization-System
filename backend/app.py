@@ -16,14 +16,18 @@ import joblib
 import pandas as pd
 import numpy as np
 import os
+import json
+from dotenv import load_dotenv
+import google.generativeai as genai
 import traceback
 
-# Import custom utility modules
+# Load environment variables from .env file
+load_dotenv()
 
 # Import custom utility modules
 from forecast_utils import recursive_forecast_cpu, recursive_forecast_storage, prepare_single_prediction_features
 from capacity_utils import analyze_capacity, detailed_capacity_report, optimization_suggestor
-from monitoring_utils import monitoring_stats, comprehensive_model_health
+from monitoring_utils import monitoring_stats, comprehensive_model_health, calculate_mape
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend integration
@@ -32,34 +36,34 @@ CORS(app)  # Enable CORS for frontend integration
 # 1) LOAD MODEL AND DATASET AT STARTUP
 # ---------------------------------------------------
 print("=" * 60)
-print("🚀 Azure Demand Forecasting API - Starting Up...")
+print("= Azure Demand Forecasting API - Starting Up...")
 print("=" * 60)
 
 try:
     # Load trained CPU demand model
     cpu_model_path = os.path.join("models", "rf_cpu_model.pkl")
     cpu_model = joblib.load(cpu_model_path)
-    print(f"✅ Loaded CPU model from: {cpu_model_path}")
+    print(f"[OK] Loaded CPU model from: {cpu_model_path}")
 
     # Load trained Storage demand model
     storage_model_path = os.path.join("models", "storage_demand_model.pkl")
     storage_model = joblib.load(storage_model_path)
-    print(f"✅ Loaded Storage model from: {storage_model_path}")
+    print(f"[OK] Loaded Storage model from: {storage_model_path}")
     
     # Load ML-ready dataset
     data_path = os.path.join("data", "feature_engineered", "mlmodeltrainingdataset.csv")
     df = pd.read_csv(data_path)
-    print(f"✅ Loaded dataset from: {data_path}")
+    print(f"[OK] Loaded dataset from: {data_path}")
     print(f"   Dataset shape: {df.shape}")
     print(f"   Features: {len(cpu_model.feature_names_in_)}")
     
     print("=" * 60)
-    print("✅ Initialization Complete - API Ready!")
+    print("[OK] Initialization Complete - API Ready!")
     print("=" * 60)
     
 except Exception as e:
     print("=" * 60)
-    print(f"❌ ERROR during initialization: {str(e)}")
+    print(f"[ERROR] during initialization: {str(e)}")
     print("=" * 60)
     raise
 
@@ -140,21 +144,6 @@ def metrics():
 def predict_cpu():
     """
     Single CPU prediction with custom input.
-    
-    Request Body (JSON):
-        {
-            "usage_cpu": 75.5,
-            "usage_storage": 82.3,
-            "users_active": 1500,
-            ...
-            (can provide all 44 features or partial - missing lag/rolling features will be calculated)
-        }
-    
-    Response:
-        {
-            "prediction": 78.3,
-            "input_features": {...}
-        }
     """
     try:
         # Get input data
@@ -265,21 +254,6 @@ def forecast_30():
 def capacity_planning():
     """
     Capacity planning analysis with scaling recommendations.
-    
-    Request Body (JSON):
-        {
-            "capacity": 10000,
-            "forecast_days": 7  (optional, default: 7)
-        }
-    
-    Response:
-        {
-            "avg_forecast": 78.5,
-            "capacity": 10000,
-            "utilization": 0.785,
-            "status": "stable" / "scale_up" / "scale_down",
-            "recommendation": "..."
-        }
     """
     try:
         # Get input data
@@ -332,22 +306,29 @@ def optimization():
 def monitoring():
     """
     Model health monitoring and drift detection.
-    
-    Query Parameters:
-        mape (optional): Current MAPE value (default: 8.5 for demo)
-    
-    Response:
-        {
-            "mape": 8.5,
-            "threshold": 10.0,
-            "status": "stable" / "drift_detected",
-            "message": "...",
-            "recommendation": "..."
-        }
     """
     try:
-        # Get MAPE from query parameters (or use demo value)
-        mape = float(request.args.get("mape", 8.5))
+        # Get MAPE from query parameters (optional override)
+        mape_param = request.args.get("mape")
+        
+        if mape_param:
+            mape = float(mape_param)
+        else:
+            # CALCULATE REAL MAPE FROM RECENT DATA (Last 30 records)
+            recent_data = df.tail(30).copy()
+            
+            # Prepare features (ensure alignment with model)
+            if hasattr(cpu_model, "feature_names_in_"):
+                features = recent_data[cpu_model.feature_names_in_]
+            else:
+                features = recent_data.drop(columns=["usage_cpu", "date", "region"], errors="ignore")
+                
+            # Make predictions
+            predictions = cpu_model.predict(features)
+            actuals = recent_data["usage_cpu"].values
+            
+            # Calculate actual MAPE
+            mape = calculate_mape(actuals, predictions)
         
         # Analyze model health
         health = monitoring_stats(mape)
@@ -365,18 +346,6 @@ def monitoring():
 def report():
     """
     Comprehensive automated report combining forecast, capacity, and monitoring.
-    
-    Query Parameters:
-        capacity (optional): Current capacity value (default: 10000)
-        mape (optional): Current MAPE value (default: 8.5)
-    
-    Response:
-        {
-            "report_type": "comprehensive",
-            "forecast_summary": {...},
-            "capacity_analysis": {...},
-            "model_health": {...}
-        }
     """
     try:
         # Get parameters
@@ -418,28 +387,10 @@ def report():
 def multi_region():
     """
     Multi-region capacity comparison endpoint.
-    
-    Query Parameters:
-        regions (optional): Comma-separated list of regions (default: "East US,West Europe,Central India")
-    
-    Response:
-        {
-            "regions": [
-                {
-                    "name": "East US",
-                    "cpuUsage": 75.5,
-                    "storageUsage": 64.2,
-                    "forecast": [76.1, 77.2, 78.5, 79.8],
-                    "peakHours": ["14:00", "15:00", "16:00"],
-                    "recommendation": "..."
-                },
-                ...
-            ]
-        }
     """
     try:
         # Get regions from query parameters
-        regions_param = request.args.get("regions", "East US,West Europe,Central India")
+        regions_param = request.args.get("regions", "East US,West US,North Europe,Southeast Asia")
         region_names = [r.strip() for r in regions_param.split(",")]
         
         # Generate forecast for base comparison
@@ -510,15 +461,282 @@ def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
 
 
+# ---------------------------------------------------
+# CHAT ASSISTANT ENDPOINT (Gemini Powered)
+# ---------------------------------------------------
+
+def generate_offline_response(user_message, context):
+    """
+    Generate a helpful response without using the Gemini API.
+    Uses rule-based logic and context data.
+    """
+    message_lower = user_message.lower()
+    
+    # Parse context if available
+    forecast_data = context.get("forecastData", []) if context else []
+    metrics = context.get("metrics", {}) if context else {}
+    
+    # Common question patterns
+    if any(word in message_lower for word in ["forecast", "prediction", "predict", "future"]):
+        if forecast_data and len(forecast_data) > 0:
+            avg = sum(forecast_data[:7]) / min(7, len(forecast_data))
+            trend = "increasing" if forecast_data[-1] > forecast_data[0] else "decreasing"
+            return f"Based on the current forecast data, your CPU usage is {trend} with an average of {avg:.1f}% over the next week. The forecast shows values ranging from {min(forecast_data):.1f}% to {max(forecast_data):.1f}%."
+        return "Your forecast shows CPU and storage demand for the next 7-30 days. Use the Forecasts page to see detailed predictions and capacity planning recommendations."
+    
+    elif any(word in message_lower for word in ["capacity", "scale", "scaling"]):
+        return "Capacity planning helps you determine when to scale resources. Check the 'Capacity' section for scaling recommendations based on your forecast. Generally, you should scale up when utilization consistently exceeds 80%, and scale down when it's below 40% for extended periods."
+    
+    elif any(word in message_lower for word in ["cpu", "processor"]):
+        if metrics and "cpu" in str(metrics).lower():
+            return "CPU usage metrics show your current processor utilization. Monitor for sustained high usage (>85%) which may indicate need for scaling. Check the Usage Trends page for historical patterns."
+        return "CPU (Central Processing Unit) utilization indicates how much processing power your systems are using. High CPU usage may require scaling up resources, while consistently low usage suggests opportunity for cost optimization."
+    
+    elif any(word in message_lower for word in ["storage", "disk", "memory"]):
+        return "Storage metrics track your data storage consumption. Monitor both current usage and growth rate to plan capacity needs. The forecast includes storage predictions to help prevent running out of space."
+    
+    elif any(word in message_lower for word in ["alert", "threshold", "warning"]):
+        return "Alerts are triggered when metrics exceed defined thresholds. You can configure threshold alerts in the Monitoring section. Common thresholds: CPU >85%, Storage >90%, to get early warnings before issues occur."
+    
+    elif any(word in message_lower for word in ["report", "download", "export"]):
+        return "You can download comprehensive PDF reports from the Reports page. These include performance summaries, forecasts, and recommendations. Use the 'Download Report' button to generate a PDF for stakeholders."
+    
+    elif any(word in message_lower for word in ["model", "accuracy", "drift"]):
+        return "The forecasting models use machine learning to predict future demand. Model health is monitored for drift (accuracy degradation). Check the Model Dashboard to see current model performance metrics like MAPE (Mean Absolute Percentage Error)."
+    
+    elif any(word in message_lower for word in ["region", "multi-region", "geographic"]):
+       return "Multi-region monitoring helps you compare resource usage across different Azure regions. This is useful for load balancing and identifying regional capacity bottlenecks. Check the Multi-Region page for cross-region comparisons."
+    
+    elif any(word in message_lower for word in ["optimize", "optimization", "cost"]):
+        return "Optimization recommendations help reduce costs while maintaining performance. Look for: 1) Overprovisioned resources (low utilization), 2) Scaling opportunities (high utilization), 3) Right-sizing suggestions based on usage patterns."
+    
+    elif any(word in message_lower for word in ["help", "how", "what", "explain"]):
+        return """I can help you with:
+• **Forecasts**: View CPU & storage predictions for next 7-30 days
+• **Capacity Planning**: Get scaling recommendations
+• **Reports**: Download performance & forecast reports
+• **Monitoring**: Check model health and accuracy
+• **Alerts**: Set up threshold-based notifications
+• **Multi-Region**: Compare usage across regions
+
+Try asking specific questions like: "What's my CPU forecast?" or "Should I scale up?"
+"""
+    
+    else:
+        # Generic helpful response
+        return """I'm an Azure capacity planning assistant. I can help with:
+
+📊 **Forecasts** - View demand predictions
+🎯 **Capacity** - Get scaling recommendations  
+📈 **Reports** - Download summaries
+⚠️ **Alerts** - Monitor thresholds
+🌍 **Regions** - Compare multi-region usage
+
+What would you like to know about your Azure infrastructure?"""
 
 
-# ---------------------------------------------------
-# 5) RUN SERVER
-# ---------------------------------------------------
+@app.route("/api/chat", methods=["POST"])
+def chat_assistant():
+    """
+    AI Chat Assistant endpoint using Google Gemini.
+    """
+    try:
+        data = request.json
+        user_message = data.get("message", "")
+        system_instruction = data.get("system_instruction", "")
+        
+        print(f"[CHAT] Received message: {user_message[:100]}...")
+        
+        # Check if API key is set
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            print("[CHAT] No API key found")
+            return jsonify({
+                "reply": "API key is not configured. Please contact the administrator."
+            }), 500
+
+        print("[CHAT] Configuring Gemini API...")
+        genai.configure(api_key=api_key)
+        
+        # Dynamically discover available model, prefer Gemini 1.5
+        print("[CHAT] Discovering available models...")
+        available_model = None
+        
+        # Try Gemini 1.5 models first
+        preferred_models = [
+            'models/gemini-1.5-flash-latest',
+            'models/gemini-1.5-pro-latest', 
+            'models/gemini-1.5-flash',
+            'models/gemini-1.5-pro'
+        ]
+        
+        try:
+            # First check if any preferred model is available
+            all_models = list(genai.list_models())
+            for preferred in preferred_models:
+                for model in all_models:
+                    if model.name == preferred and 'generateContent' in model.supported_generation_methods:
+                        available_model = model.name
+                        print(f"[CHAT] Found preferred model: {available_model}")
+                        break
+                if available_model:
+                    break
+            
+            # If no preferred model found, use any available model
+            if not available_model:
+                for model in all_models:
+                    if 'generateContent' in model.supported_generation_methods:
+                        available_model = model.name
+                        print(f"[CHAT] Using available model: {available_model}")
+                        break
+        except Exception as list_error:
+            print(f"[CHAT] Error listing models: {list_error}")
+            # Fallback to default
+            available_model = 'models/gemini-1.5-flash-latest'
+        
+        if not available_model:
+            return jsonify({
+                "reply": "No suitable AI model is available. Please check your API configuration."
+            }), 500
+        
+        print(f"[CHAT] Using model: {available_model}")
+        
+        # Configure with minimal safety restrictions
+        safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_NONE"
+            }
+        ]
+        
+        # Use discovered model with relaxed safety settings
+        model = genai.GenerativeModel(
+            available_model,
+            generation_config={
+                'temperature': 0.9,
+                'top_p': 0.95,
+                'top_k': 40,
+                'max_output_tokens': 2048,
+            },
+            safety_settings=safety_settings
+        )
+        
+        # Construct simple prompt (avoid triggering safety filters)
+        # Extract and log context for debugging
+        context_data = {}
+        if system_instruction and "Current page context:" in system_instruction:
+            try:
+                # Extract the JSON part after "Current page context: "
+                context_start = system_instruction.find("Current page context:") + len("Current page context:")
+                context_end = system_instruction.find(". Use this context")
+                if context_end == -1:
+                    context_end = len(system_instruction)
+                
+                context_str = system_instruction[context_start:context_end].strip()
+                print(f"[CHAT] Context string: {context_str[:200]}...")
+                
+                if context_str and context_str != "{}":
+                    context_data = json.loads(context_str)
+                    print(f"[CHAT] Parsed context: page={context_data.get('page', 'unknown')}, keys={list(context_data.keys())}")
+                else:
+                    print("[CHAT] Context is empty {}")
+            except Exception as e:
+                print(f"[CHAT] Error parsing context: {e}")
+        
+        # Build prompt with context
+        if context_data and context_data.get('page'):
+            # Format context nicely for Gemini
+            page = context_data.get('page', 'Unknown')
+            summary = context_data.get('summary', {})
+            
+            context_text = f"You are analyzing data from the {page} page of an Azure capacity planning dashboard.\n\n"
+            
+            if page == "Forecasts":
+                context_text += f"Current forecast data:\n"
+                context_text += f"- Forecast period: {summary.get('totalDays', 'N/A')} days\n"
+                context_text += f"- Average CPU: {summary.get('avgCPU', 'N/A')}%\n"
+                context_text += f"- Maximum CPU: {summary.get('maxCPU', 'N/A')}%\n"
+                context_text += f"- Minimum CPU: {summary.get('minCPU', 'N/A')}%\n"
+                context_text += f"- Average Storage: {summary.get('avgStorage', 'N/A')} TB\n"
+                if context_data.get('cpuForecast'):
+                    forecast_values = context_data['cpuForecast'][:7]  # First 7 days
+                    context_text += f"- Next 7 days CPU forecast: {forecast_values}\n"
+            
+            elif page == "Reports":
+                context_text += f"Performance report data:\n"
+                context_text += f"- Average CPU: {summary.get('avgCPU', 'N/A')}%\n"
+                context_text +=f"- Average Storage: {summary.get('avgStorage', 'N/A')}\n"
+                context_text += f"- Forecast average: {summary.get('avgForecast', 'N/A')}%\n"
+                context_text += f"- Total predictions: {summary.get('totalPredictions', 'N/A')}\n"
+                
+            context_text += f"\nUser question: {user_message}"
+            prompt = context_text
+        else:
+            prompt = user_message
+        
+        print("[CHAT] Sending request to Gemini...")
+        response = model.generate_content(prompt)
+        
+        # Try to extract text from various response formats
+        reply_text = ""
+        
+        # Method 1: Direct .text attribute
+        if hasattr(response, 'text') and response.text:
+            reply_text = response.text
+        # Method 2: candidates[0].content.parts[0].text
+        elif hasattr(response, 'candidates') and response.candidates:
+            candidate = response.candidates[0]
+            if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                parts = candidate.content.parts
+                if parts and hasattr(parts[0], 'text'):
+                    reply_text = parts[0].text
+        # Method 3: parts attribute directly
+        elif hasattr(response, 'parts') and response.parts:
+            reply_text = ''.join(part.text for part in response.parts if hasattr(part, 'text'))
+        
+        if not reply_text:
+            # Check if blocked
+            if hasattr(response, 'prompt_feedback'):
+                feedback = response.prompt_feedback
+                if hasattr(feedback, 'block_reason'):
+                    return jsonify({
+                        "reply": f"Response was blocked by Google's safety filters: {feedback.block_reason}. Try rephrasing your question or use a different API key with relaxed safety settings."
+                    }), 200
+            
+            return jsonify({
+                "reply": "Could not extract response from API. The model may have returned an empty result."
+            }), 500
+        
+        print(f"[CHAT] Got response: {reply_text[:100]}...")
+        return jsonify({"reply": reply_text})
+
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[CHAT ERROR] {type(e).__name__}: {error_msg}")
+        traceback.print_exc()
+        
+        return jsonify({
+            "reply": f"Error: {error_msg}"
+        }), 500
+
+
 if __name__ == "__main__":
     print("\n" + "=" * 60)
-    print("🌐 Starting Flask Development Server...")
-    print("📍 Access the API at: http://localhost:5000")
+    print("Starting Flask Development Server...")
+    port = int(os.environ.get('PORT', 5000))
+    print(f"-> Access the API at: http://localhost:{port}")
     print("=" * 60 + "\n")
     
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(host='0.0.0.0', port=port, debug=False)

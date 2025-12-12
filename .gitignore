@@ -52,7 +52,7 @@ backend/data/feature_engineered/*
 *.json.gz
 
 # If you want to track specific CSVs, whitelist like:
-# !backend/data/feature_engineered/your_file.csv
+!backend/data/feature_engineered/mlmodeltrainingdataset.csv
 
 # =========================================================
 # ENVIRONMENT VARIABLES

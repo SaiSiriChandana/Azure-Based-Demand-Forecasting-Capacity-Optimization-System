@@ -1,8 +1,8 @@
 import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
-import { Sun, Moon, User, Cloud, Bell } from "lucide-react";
+import { Sun, Moon, User, Cloud, Bell, Sparkles } from "lucide-react";
 
-const Header = () => {
+const Header = ({ isChatOpen, setIsChatOpen }) => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -58,6 +58,19 @@ const Header = () => {
             ) : (
               <Sun className="text-yellow-300" size={18} />
             )}
+          </button>
+
+          {/* AI Chat Toggle */}
+          <button
+            onClick={() => setIsChatOpen(!isChatOpen)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all shadow-sm ${isChatOpen
+              ? "bg-white text-blue-600 border-white shadow-inner"
+              : "bg-white/10 hover:bg-white/20 text-white border-white/10 hover:border-white/30"
+              }`}
+            aria-label="Toggle AI Assistant"
+          >
+            <Sparkles size={18} className={isChatOpen ? "fill-current" : ""} />
+            <span className="hidden sm:inline text-xs font-semibold">AI Assistant</span>
           </button>
 
           {/* User chip */}

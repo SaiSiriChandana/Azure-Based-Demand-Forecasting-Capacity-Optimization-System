@@ -13,13 +13,14 @@ import {
   BrainCircuit,
 } from "lucide-react";
 
-export default function Sidebar({ onSelect }) {
-  const [active, setActive] = useState("Dashboard");
+export default function Sidebar({ onSelect, activePage }) {
+  const [internalActive, setInternalActive] = useState("Dashboard");
+  const active = activePage !== undefined ? activePage : internalActive;
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const handleSelect = (page) => {
-    setActive(page);
+    setInternalActive(page);
     if (onSelect) onSelect(page);
     if (window.innerWidth < 1024) setIsOpen(false);
   };
@@ -78,7 +79,7 @@ export default function Sidebar({ onSelect }) {
 
       {/* Sidebar */}
       <aside
-        className={`group fixed lg:static top-0 left-0 h-full w-72 lg:w-24 hover:lg:w-72 
+        className={`group fixed lg:fixed lg:top-16 lg:h-[calc(100vh-4rem)] top-0 left-0 h-full w-72 lg:w-24 hover:lg:w-72 overflow-y-auto
           bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 text-gray-100 px-5 py-5 shadow-2xl 
           border-r border-gray-800 flex flex-col justify-between transform 
           transition-all duration-300 ease-in-out z-40 
@@ -148,10 +149,9 @@ export default function Sidebar({ onSelect }) {
                 onClick={() => handleSelect(name)}
                 className={`relative flex items-center justify-center lg:justify-center gap-0 
                   w-full py-2.5 rounded-2xl text-left font-medium transition-all duration-200
-                  ${
-                    active === name
-                      ? "text-white"
-                      : "text-gray-400 hover:text-white hover:bg-gray-800/40 hover:-translate-y-[1px]"
+                  ${active === name
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white hover:bg-gray-800/40 hover:-translate-y-[1px]"
                   }`}
               >
                 {active === name && (
@@ -160,10 +160,9 @@ export default function Sidebar({ onSelect }) {
 
                 <div
                   className={`flex items-center justify-center w-11 h-11 rounded-2xl 
-                    transition-all duration-300 ${
-                      active === name
-                        ? `bg-gradient-to-br ${bgActiveColorMap[name]} text-white shadow-lg ring-1 ring-white/20`
-                        : `bg-gray-900/80 ${iconColorMap[name]} border border-gray-800/70`
+                    transition-all duration-300 ${active === name
+                      ? `bg-gradient-to-br ${bgActiveColorMap[name]} text-white shadow-lg ring-1 ring-white/20`
+                      : `bg-gray-900/80 ${iconColorMap[name]} border border-gray-800/70`
                     }`}
                 >
                   <Icon size={20} strokeWidth={2} className="align-middle" />
@@ -186,11 +185,10 @@ export default function Sidebar({ onSelect }) {
                   </span>
                   {badge && (
                     <span
-                      className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                        badge === "Beta"
-                          ? "bg-fuchsia-500/20 text-fuchsia-200 border-fuchsia-400/60"
-                          : "bg-emerald-500/15 text-emerald-200 border-emerald-400/60"
-                      }`}
+                      className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badge === "Beta"
+                        ? "bg-fuchsia-500/20 text-fuchsia-200 border-fuchsia-400/60"
+                        : "bg-emerald-500/15 text-emerald-200 border-emerald-400/60"
+                        }`}
                     >
                       {badge}
                     </span>

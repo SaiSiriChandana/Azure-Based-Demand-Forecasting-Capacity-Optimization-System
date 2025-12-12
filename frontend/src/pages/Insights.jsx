@@ -185,11 +185,10 @@ const KPICard = ({ title, value, change, icon: Icon, color, bgColor }) => {
           {value}
         </p>
         <div
-          className={`mt-2 sm:mt-0 flex items-center text-sm font-semibold ${
-            isPositive
-              ? "text-green-600 dark:text-green-400"
-              : "text-red-600 dark:text-red-400"
-          }`}
+          className={`mt-2 sm:mt-0 flex items-center text-sm font-semibold ${isPositive
+            ? "text-green-600 dark:text-green-400"
+            : "text-red-600 dark:text-red-400"
+            }`}
         >
           <ChangeIcon className="w-4 h-4 mr-1" />
           {change}
@@ -223,7 +222,7 @@ export default function Insights() {
 
         // Fetch model metrics
         const metricsResponse = await fetchMetrics();
-        
+
         // Fetch monitoring data for model health
         const monitoringResponse = await fetchMonitoring(8.5);
 
@@ -305,17 +304,17 @@ export default function Insights() {
 
         // Generate recent activity from monitoring data
         const recentActivity = [
-          { 
-            id: 1, 
-            text: `Forecast model updated with ${predictions.length} day predictions.`, 
-            time: "5 mins ago", 
-            tag: "System" 
+          {
+            id: 1,
+            text: `Forecast model updated with ${predictions.length} day predictions.`,
+            time: "5 mins ago",
+            tag: "System"
           },
-          { 
-            id: 2, 
-            text: `Capacity analysis completed. Average forecast: ${Math.round(avgForecast)}%`, 
-            time: "1 hour ago", 
-            tag: "Finance" 
+          {
+            id: 2,
+            text: `Capacity analysis completed. Average forecast: ${Math.round(avgForecast)}%`,
+            time: "1 hour ago",
+            tag: "Finance"
           },
           {
             id: 3,
@@ -323,11 +322,11 @@ export default function Insights() {
             time: "4 hours ago",
             tag: "System",
           },
-          { 
-            id: 4, 
-            text: monitoringResponse.recommendation || "Model health check completed.", 
-            time: "Yesterday", 
-            tag: "Support" 
+          {
+            id: 4,
+            text: monitoringResponse.recommendation || "Model health check completed.",
+            time: "Yesterday",
+            tag: "Support"
           },
         ];
 
@@ -342,33 +341,50 @@ export default function Insights() {
         // Use monitoring MAPE and create comparison metrics
         const mape = monitoringResponse.mape || 8.5;
         const baseMape = mape;
-        
+
         // Create model comparison (simulated but based on actual RF model)
+        // Update model comparison with static values as per user request
         const models = [
           {
-            name: "RF (Current)",
-            mae: Math.round(baseMape * 1.2),
-            rmse: Math.round(baseMape * 1.8),
-            mape: Math.round(baseMape),
-            trainingTime: 40,
-            inferenceSpeed: 75,
+            name: "ARIMA",
+            mae: 12.92,
+            rmse: 14.71,
+            r2: 0.1542,
+            mape: "18.41%",
+            trainingTime: 0.5, // 0.5s (Fast)
+            inferenceTime: 2, // 2ms (Fast)
+            performance: "Poor"
           },
           {
-            name: "LSTM (Alternative)",
-            mae: Math.round(baseMape * 1.1),
-            rmse: Math.round(baseMape * 1.5),
-            mape: Math.round(baseMape * 0.9),
-            trainingTime: 80,
-            inferenceSpeed: 60,
+            name: "Random Forest",
+            mae: 1.02,
+            rmse: 1.47,
+            r2: 0.9897,
+            mape: "1.38%",
+            trainingTime: 0.8, // 0.8s (Fast)
+            inferenceTime: 1, // 1ms (Very Fast)
+            performance: "BEST"
           },
           {
-            name: "ARIMA (Baseline)",
-            mae: Math.round(baseMape * 1.4),
-            rmse: Math.round(baseMape * 2.0),
-            mape: Math.round(baseMape * 1.2),
-            trainingTime: 30,
-            inferenceSpeed: 50,
+            name: "XGBoost",
+            mae: 1.16,
+            rmse: 1.60,
+            r2: 0.9877,
+            mape: "1.38%",
+            trainingTime: 0.6, // 0.6s (Fast)
+            inferenceTime: 1, // 1ms (Very Fast)
+            performance: "Excellent"
           },
+          {
+            name: "LSTM",
+            mae: 39.58,
+            rmse: 42.20,
+            r2: -7.23,
+            mape: "51.32%",
+            trainingTime: 15.0, // 15s (Slowest)
+            inferenceTime: 12, // 12ms (Slower)
+            performance: "Very Poor"
+          }
         ];
         setModelMetrics(models);
 
@@ -599,15 +615,14 @@ export default function Insights() {
             >
               <p className="text-sm text-gray-700 dark:text-gray-300">
                 <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mr-2 ${
-                    activity.tag === "Lead"
-                      ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300"
-                      : activity.tag === "Finance"
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mr-2 ${activity.tag === "Lead"
+                    ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300"
+                    : activity.tag === "Finance"
                       ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300"
                       : activity.tag === "System"
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300"
-                  }`}
+                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                        : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300"
+                    }`}
                 >
                   {activity.tag}
                 </span>

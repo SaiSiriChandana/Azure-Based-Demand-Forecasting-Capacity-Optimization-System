@@ -90,8 +90,9 @@ export async function fetchOptimization(capacity, forecastDays = 7, region = "un
 /**
  * Get model monitoring/health data
  */
-export async function fetchMonitoring(mape = 8.5) {
-  return apiRequest(`/api/monitoring?mape=${mape}`);
+export async function fetchMonitoring(mape) {
+  const url = mape !== undefined ? `/api/monitoring?mape=${mape}` : "/api/monitoring";
+  return apiRequest(url);
 }
 
 /**
@@ -104,7 +105,7 @@ export async function fetchReport(capacity = 10000, mape = 8.5) {
 /**
  * Get multi-region capacity comparison data
  */
-export async function fetchMultiRegion(regions = "East US,West Europe,Central India") {
+export async function fetchMultiRegion(regions = "East US,West US,North Europe,Southeast Asia") {
   return apiRequest(`/api/multi_region?regions=${encodeURIComponent(regions)}`);
 }
 
