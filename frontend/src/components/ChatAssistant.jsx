@@ -39,7 +39,8 @@ function ChatAssistant({ isOpen, onClose, currentContext }) {
         { role: "user", content: userMsg.text },
       ];
 
-      const res = await fetch("http://localhost:5000/api/chat", {
+      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const res = await fetch(`${BASE_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: apiMessages }),
@@ -89,8 +90,8 @@ function ChatAssistant({ isOpen, onClose, currentContext }) {
           <div
             key={idx}
             className={`max-w-[85%] px-3 py-2 rounded-xl ${m.from === "user"
-                ? "ml-auto bg-blue-600 text-white"
-                : "mr-auto bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100"
+              ? "ml-auto bg-blue-600 text-white"
+              : "mr-auto bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100"
               }`}
           >
             {m.text}

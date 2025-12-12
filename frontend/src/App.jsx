@@ -64,7 +64,8 @@ function ChatAssistant({ isOpen, onClose, currentContext }) {
 
     try {
       const contextString = currentContext ? JSON.stringify(currentContext) : "{}";
-      const response = await fetch("http://localhost:5000/api/chat", {
+      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const response = await fetch(`${BASE_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
